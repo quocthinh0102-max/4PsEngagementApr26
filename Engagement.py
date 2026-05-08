@@ -23,9 +23,9 @@ def standardize_id(x):
 def apply_4ps_color(val):
     try:
         val = float(val)
-        if val < 3.5: return 'background-color: #e74c3c; color: black; font-weight: bold;' # Đỏ
-        if val < 4.0: return 'background-color: #f1c40f; color: black; font-weight: bold;' # Vàng
-        return 'background-color: #2ecc71; color: black; font-weight: bold;' # Xanh
+        if val < 3.5: return 'background-color: #e74c3c; color: black; font-weight: bold;'
+        if val < 4.0: return 'background-color: #f1c40f; color: black; font-weight: bold;'
+        return 'background-color: #2ecc71; color: black; font-weight: bold;'
     except: return ''
 
 # --- 3. DATA LOADING ---
@@ -181,7 +181,7 @@ if u_id_raw:
             for t in get_opts(d4_t1, H_T1[3]): rows.append(get_sum(d4_t1[d4_t1[H_T1[3]]==t], f"  ↳ Team: {t}"))
 
         res_df = pd.DataFrame([r for r in rows if r]).set_index('Level')
-        st.table(res_df.style.format("{:.2f}").applymap(apply_4ps_color))
+        st.table(res_df.style.format("{:.2f}").map(_color))
 
         # Row 4: Butterfly Chart
         st.divider()
