@@ -181,7 +181,7 @@ if u_id_raw:
             for t in get_opts(d4_t1, H_T1[3]): rows.append(get_sum(d4_t1[d4_t1[H_T1[3]]==t], f"  ↳ Team: {t}"))
 
         res_df = pd.DataFrame([r for r in rows if r]).set_index('Level')
-        st.table(res_df.style.format("{:.2f}").map(_color))
+        st.table(res_df.style.format("{:.2f}").map(apply_4ps_color))
 
         # Row 4: Butterfly Chart
         st.divider()
