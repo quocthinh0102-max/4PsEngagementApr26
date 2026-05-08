@@ -21,13 +21,15 @@ def standardize_id(x):
     return val
 
 def apply_4ps_color(val):
-    if val == "Hidden": return 'color: gray; font-style: italic;'
+    if val == "Hidden": 
+        return 'color: #95a5a6; font-style: italic;' # Màu xám cho chữ Hidden
     try:
         val = float(val)
         if val < 3.5: return 'background-color: #e74c3c; color: black; font-weight: bold;'
         if val < 4.0: return 'background-color: #f1c40f; color: black; font-weight: bold;'
         return 'background-color: #2ecc71; color: black; font-weight: bold;'
-    except: return ''
+    except: 
+        return ''
 
 # --- 3. DATA LOADING ---
 @st.cache_data
@@ -194,13 +196,26 @@ if u_id_raw:
             for t in get_opts(d4_t1, H_T1[3]): rows.append(get_sum(d4_t1[d4_t1[H_T1[3]]==t], f"  ↳ Team: {t}"))
 
         res_df = pd.DataFrame([r for r in rows if r]).set_index('Level')
-        st.table(res_df.style.format("{:.2f}", na_rep="-").map(apply_4ps_color))
+        # --- CÁCH SỬA DÒNG 197 ---
+
+# 1. Tạo hàm format riêng để né các ô chứa chữ "Hidden"
+def safe_format(val):
+    try:
+        return f"{float(val):.2f}"
+    except (ValueError, TypeError):
+        return val
+
+# 2. Áp dụng vào bảng thay cho cách cũ
+st.table(
+    res_df.style.format(safe_format)  # Dùng hàm safe_format thay cho "{:.2f}"
+    .map(apply_4ps_color)
+)
 
         # Row 4: Feedback
         if responses >= 5:
             st.divider()
             st.subheader("💬 Feedback Analysis")
-            df_f_t1['NPS_Group'] = df_f_t1[Q8].apply(lambda x: "Promoters" if x>=9 else ("Passives" if x>=7 else "Detractors"))
+            df_f_t1['NPS_Group'] = df_f_t1[Q8].(lambda x: "Promoters" if x>=9 else ("Passives" if x>=7 else "Detractors"))
             for grp in ["Promoters", "Passives", "Detractors"]:
                 with st.expander(f"🔍 Analysis: {grp}"):
                     g_df = df_f_t1[df_f_t1['NPS_Group']==grp]
