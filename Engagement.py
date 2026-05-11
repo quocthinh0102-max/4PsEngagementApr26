@@ -187,39 +187,81 @@ if u_id_raw:
                 fig_nps_pie.update_traces(sort=False) 
                 c2.plotly_chart(fig_nps_pie.update_layout(height=350, margin=dict(t=30,b=30)), use_container_width=True)
 
-        # Row 3: Hierarchy Comparison
+        # --- Row 3: Hierarchy Comparison (Bản FIX 100% không mất layer cha) ---
         st.divider()
         st.subheader("📊 Hierarchy Score Comparison")
         
         def get_sum(df, label, force_show=False):
-            if df.empty: return None
-            actual_resp = len(df)
-            if actual_resp < 5 and not force_show:
+            if df is None or df.empty: return None
+            # Bảo mật: Ít hơn 5 người thì ẩn, trừ các dòng Benchmark cha
+            if len(df) < 5 and not force_show:
                 return {'Level': f"{label} (Hidden)", 'Avg Score': "Hidden", **{dr: "Hidden" for dr in DRIVER_NAMES}}
             return {'Level': label, 'Avg Score': df['Average Score'].mean(), **{dr: df[dr].mean() for dr in DRIVER_NAMES}}
         
         rows = []
-        rows.append(get_sum(data_t1, "🌍 TOTAL 4P'S (Benchmark)", force_show=True))
-        if not is_admin:
-            if my_parent_group: rows.append(get_sum(data_t1[data_t1[H_T1[0]] == my_parent_group], f"🏢 Group: {my_parent_group}", force_show=True))
-            if my_parent_dept: rows.append(get_sum(data_t1[data_t1[H_T1[1]] == my_parent_dept], f"📁 Dept: {my_parent_dept}", force_show=True))
-            if my_parent_func: rows.append(get_sum(data_t1[data_t1[H_T1[2]] == my_parent_func], f"📍 Store: {my_parent_func}", force_show=True))
         
-        rows.append(get_sum(scope_t1, "⭐ YOUR TEAM TOTAL"))
+        # --- 1. PHẦN LỘ TRÌNH CHA (ANCESTRY) - Dùng data_t1 gốc để không bị mất layer ---
+        # Tầng 1: Toàn công ty
+        rows.append(get_sum(data_t1, "🌍 TOTAL 4P'S", force_show=True))
         
-        if f1 == "All":
-            for g in get_opts(scope_t1, H_T1[0]): rows.append(get_sum(scope_t1[scope_t1[H_T1[0]]==g], f"  ↳ Group: {g}"))
-        elif f2 == "All":
-            for d in get_opts(d2_t1, H_T1[1]): rows.append(get_sum(d2_t1[d2_t1[H_T1[1]]==d], f"  ↳ Dept: {d}"))
-        elif f3 == "All":
-            for f in get_opts(d3_t1, H_T1[2]): rows.append(get_sum(d3_t1[d3_t1[H_T1[2]]==f], f"  ↳ Func: {f}"))
-        else:
-            for t in get_opts(d4_t1, H_T1[3]): rows.append(get_sum(d4_t1[d4_t1[H_T1[3]]==t], f"  ↳ Team: {t}"))
+        # Lấy thông tin thực tế của User đang đăng nhập
+        if not is_admin and not my_info.empty:
+            v_g = my_info[H_S1[0]].values[0]
+            v_d = my_info[H_S1[1]].values[0]
+            v_f = my_info[H_S1[2]].values[0]
+            
+            # Tầng 2: Group (Quan trọng: Luôn lấy từ data_t1 để dù filter gì vẫn hiện)
+            if pd.notna(v_g) and str(v_g) != '0':
+                group_all_data = data_t1[data_t1[H_T1[0]] == v_g]
+                rows.append(get_sum(group_all_data, f"🏢 Group: {v_g}", force_show=True))
+            
+            # Tầng 3: Dept
+            if pd.notna(v_d) and str(v_d) != '0':
+                dept_all_data = data_t1[data_t1[H_T1[1]] == v_d]
+                rows.append(get_sum(dept_all_data, f"📁 Dept: {v_d}", force_show=True))
+                
+            # Tầng 4: Store
+            if pd.notna(v_f) and str(v_f) != '0':
+                func_all_data = data_t1[data_t1[H_T1[2]] == v_f]
+                rows.append(get_sum(func_all_data, f"📍 Store: {v_f}", force_show=True))
 
-        res_df = pd.DataFrame([r for r in rows if r]).set_index('Level')
+        # --- 2. ĐỊNH DANH FILTER HIỆN TẠI (Đổi tên theo filter bé nhất) ---
+        active_filter_name = "⭐ TOTAL SCOPE"
+        if f4 != "All": active_filter_name = f"⭐ Team: {f4}"
+        elif f3 != "All": active_filter_name = f"⭐ Func: {f3}"
+        elif f2 != "All": active_filter_name = f"⭐ Dept: {f2}"
+        elif f1 != "All": active_filter_name = f"⭐ Group: {f1}"
         
-        # Hiển thị bảng với format an toàn
-        st.table(res_df.style.format(safe_format).map(apply_4ps_color))
+        rows.append(get_sum(df_f_t1, active_filter_name))
+
+        # --- 3. DYNAMIC BREAKDOWN (Hiện danh sách con) ---
+        # Khi chưa chọn gì (f1="All") -> Show danh sách Group
+        if f1 == "All":
+            for g in get_opts(scope_t1, H_T1[0]):
+                rows.append(get_sum(scope_t1[scope_t1[H_T1[0]]==g], f"  ↳ Group: {g}"))
+        
+        # Đã chọn Group, Dept là All -> Show danh sách Dept con
+        elif f1 != "All" and f2 == "All":
+            for d in get_opts(d2_t1, H_T1[1]):
+                rows.append(get_sum(d2_t1[d2_t1[H_T1[1]]==d], f"  ↳ Dept: {d}"))
+        
+        # Đã chọn Dept, Func là All -> Show danh sách Func con
+        elif f2 != "All" and f3 == "All":
+            for f in get_opts(d3_t1, H_T1[2]):
+                rows.append(get_sum(d3_t1[d3_t1[H_T1[2]]==f], f"  ↳ Func: {f}"))
+        
+        # Đã chọn Func, Team là All -> Show danh sách Team con
+        elif f3 != "All" and f4 == "All":
+            for t in get_opts(d4_t1, H_T1[3]):
+                rows.append(get_sum(d4_t1[d4_t1[H_T1[3]]==t], f"  ↳ Team: {t}"))
+
+        # --- 4. RENDER VÀ LỌC TRÙNG ---
+        res_df = pd.DataFrame([r for r in rows if r])
+        if not res_df.empty:
+            # Drop duplicates giữ lại dòng đầu tiên (ưu tiên dòng Ancestry)
+            res_df = res_df.drop_duplicates(subset=['Level'], keep='first')
+            res_df = res_df.set_index('Level')
+            st.table(res_df.style.format(safe_format).map(apply_4ps_color))
 
         # Row 4: Feedback Analysis (Chỉ hiện khi đủ 5 phản hồi)
         if responses >= 5:
