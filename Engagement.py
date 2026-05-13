@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # --- 1. CONFIG & STYLE ---
-st.set_page_config(page_title="4P's Engagement Portal", layout="wide")
+st.set_page_config(page_title="4P's Engagement", layout="wide")
 
 # Danh sách Admin có quyền xem toàn bộ công ty
 SUPER_ADMIN_IDS = ["PZ016155", "PZ007411", "PZ004485", "PZEX0011", "PZEX0001"]
